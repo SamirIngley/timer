@@ -4,10 +4,9 @@ import threading
 import time
 
 '''
-Okay, so what, we have a timer that tracks time up to 12 hours
-why only 12 hours lol, keep going. 
-
-Also, be able to pass in an end time would be cool 
+TODO: Allow user input to end timer
+TODO: Allow input to determine end time (don't hardcoat end time)
+TODO: simplify clock logic 
 
 '''
 
@@ -29,6 +28,7 @@ def background_timer(stop_event):
 def clock_logic(current_time, end_time="12:59:59"):
     h_tens, h_ones, m_tens, m_ones, s_tens, s_ones = time_split(current_time)
     print(f"\r  {current_time}  \033[K", end="", flush=True)
+    # print(current_time)
     end_flag = False
     if current_time == end_time:
         end_flag = True
@@ -109,15 +109,19 @@ def timer(current_time=0):
 
     executor = ThreadPoolExecutor(max_workers=1) 
     future = executor.submit(background_timer, stop_flag)
-    result = future.result()
 
     while not future.done():
         if future.running():
             input()
             stop_flag.set()
-            return print(" user input - ending timer")
+            print()
+            return print(" user input - ending timer\n")
+            
 
-    if result:   
+    result = future.result()
+    print('result: ', result)
+
+    if result:
         return print("\n\n timer ended\n")
 
     
