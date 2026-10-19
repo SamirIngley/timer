@@ -4,10 +4,8 @@ import threading
 import time
 
 '''
-TODO: User input method blocks the end time from from ending timer. and ctrl+c doesn't end program.
-- passing in a flag to the thread which can be checked from outside the thread to end the thread. 
-TODO: End time should end program
-TODO: Allow input to determine end time (don't hardcoat end time)
+TODO: End timer via correctly named flag. 
+TODO: Allow input to set end time
 TODO: simplify clock logic 
 '''
 
@@ -15,18 +13,20 @@ TODO: simplify clock logic
 ZEROES = "00:00:00"
 TEN_SECONDS = "00:00:10"
 
-def background_timer(timer_done): 
+def background_timer(timerDone_flag): 
     print()
     print()
 
     time_value = ZEROES # start time / or current time
     end_time = TEN_SECONDS
 
-    while not timer_done.is_set(): 
-        time_value, timerEnd_flag = clock_logic(time_value, end_time)
-        if timerEnd_flag: 
-            timer_done.set()
-            return timerEnd_flag
+    # Checks if timerDone flag been set (user input)
+    while not timerDone_flag.is_set(): 
+        time_value, endTimer_flag = clock_logic(time_value, end_time)
+         # Check if we reached end_time to set timerDone flag
+        if endTimer_flag:
+            timerDone_flag.set()
+            return endTimer_flag
 
 def clock_logic(current_time, end_time="12:59:59"):
     h_tens, h_ones, m_tens, m_ones, s_tens, s_ones = time_split(current_time)
