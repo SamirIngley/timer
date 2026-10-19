@@ -4,34 +4,37 @@ import threading
 import time
 
 '''
-TODO: Allow user input to end timer
+TODO: User input method blocks the end time from from ending timer. and ctrl+c doesn't end program.
+- passing in a flag to the thread which can be checked from outside the thread to end the thread. 
+TODO: End time should end program
 TODO: Allow input to determine end time (don't hardcoat end time)
 TODO: simplify clock logic 
-
 '''
+
 
 ZEROES = "00:00:00"
 TEN_SECONDS = "00:00:10"
 
-def background_timer(stop_event): 
+def background_timer(timer_done): 
     print()
     print()
 
     time_value = ZEROES # start time / or current time
     end_time = TEN_SECONDS
 
-    while not stop_event.is_set(): 
-        time_value, end_flag = clock_logic(time_value, end_time)
-        if end_flag: 
-            return end_flag
+    while not timer_done.is_set(): 
+        time_value, timerEnd_flag = clock_logic(time_value, end_time)
+        if timerEnd_flag: 
+            timer_done.set()
+            return timerEnd_flag
 
 def clock_logic(current_time, end_time="12:59:59"):
     h_tens, h_ones, m_tens, m_ones, s_tens, s_ones = time_split(current_time)
     print(f"\r  {current_time}  \033[K", end="", flush=True)
     # print(current_time)
-    end_flag = False
+    timerEnd_flag = False
     if current_time == end_time:
-        end_flag = True
+        timerEnd_flag = True
     else: 
         time.sleep(1)
 
@@ -82,7 +85,7 @@ def clock_logic(current_time, end_time="12:59:59"):
     new_hours = str(h_tens) + str(h_ones)
     current_time = new_hours + ":" + new_minutes + ":" + new_seconds
 
-    return current_time, end_flag
+    return current_time, timerEnd_flag
 
 def time_split(time_string): 
 
@@ -103,27 +106,31 @@ def time_split(time_string):
 
     return hours_tens, hours_ones, minutes_tens, minutes_ones, seconds_tens, seconds_ones
 
-def timer(current_time=0):
+def input_reader(timerDone_flag):
 
-    stop_flag = threading.Event()
+    while not timerDone_flag.is_set():
+        input() # input() hangs until some input is received, only then moves to next step
+        timerDone_flag.set() # if input() receives input, moves on to this step where flag is set
+        print()
+        return print(" user input - ending timer\n") 
 
+
+def main_timer(current_time=0):
+
+    timerDone_flag = threading.Event()
+
+    # timer done flag passed into two threads - set in one, read in the other
     executor = ThreadPoolExecutor(max_workers=1) 
-    future = executor.submit(background_timer, stop_flag)
-
-    while not future.done():
-        if future.running():
-            input()
-            stop_flag.set()
-            print()
-            return print(" user input - ending timer\n")
+    timer = executor.submit(background_timer, timerDone_flag)
+    # Daemon thread, so it won't keep the program alive
+    threading.Thread(target=input_reader, args=(timerDone_flag,), daemon=True).start()
             
-
-    result = future.result()
-    print('result: ', result)
-
+    result = timer.result()
     if result:
-        return print("\n\n timer ended\n")
+        return print("\n\n timer completed \n")
+    else: 
+        return print("\n\n unexepcted error \n")
 
     
 if __name__ == "__main__":
-    timer()
+    main_timer()
