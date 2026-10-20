@@ -21,10 +21,9 @@ def background_timer(timerDone_flag, userInput_flag):
     time_value = ZEROES # start time / or current time
     end_time = THREE_SECONDS
 
-    # Checks if timerDone flag been set (user input)
     while not timerDone_flag.is_set() and not userInput_flag.is_set(): 
         time_value, endTimer_flag = clock_logic(time_value, end_time)
-         # Check if we reached end_time to set timerDone flag
+
         if endTimer_flag:
             timerDone_flag.set()
             return endTimer_flag
@@ -114,6 +113,16 @@ def input_reader(timerDone_flag, userInput_flag):
         userInput_flag.set() # if input() receives input, moves on to this step where flag is set
         return 
 
+def message(timerDone_flag, userInput_flag):
+    message = None
+    if timerDone_flag.is_set():
+        message = "timer completed"
+    elif userInput_flag.is_set():
+        message = "user input - ending timer"
+    else: 
+        message = "unexepcted error"
+
+    return print(f"\n\n {message} \n\n")
 
 def main_timer(current_time=0):
 
@@ -128,15 +137,8 @@ def main_timer(current_time=0):
             
     result = timer.result()
 
-    message = None
-    if timerDone_flag.is_set():
-        message = "timer completed"
-    elif userInput_flag.is_set():
-        message = "user input - ending timer"
-    else: 
-        message = "unexepcted error"
-
-    return print(f"\n\n {message} \n\n")
+    return message(timerDone_flag, userInput_flag)
+    
 
     
 if __name__ == "__main__":
