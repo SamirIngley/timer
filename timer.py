@@ -4,24 +4,25 @@ import threading
 import time
 
 '''
-TODO: End timer via correctly named flag. 
 TODO: Allow input to set end time
 TODO: simplify clock logic 
 '''
 
 
 ZEROES = "00:00:00"
+THREE_SECONDS = "00:00:03"
+
 TEN_SECONDS = "00:00:10"
 
-def background_timer(timerDone_flag): 
+def background_timer(timerDone_flag, userInput_flag): 
     print()
     print()
 
     time_value = ZEROES # start time / or current time
-    end_time = TEN_SECONDS
+    end_time = THREE_SECONDS
 
     # Checks if timerDone flag been set (user input)
-    while not timerDone_flag.is_set(): 
+    while not timerDone_flag.is_set() and not userInput_flag.is_set(): 
         time_value, endTimer_flag = clock_logic(time_value, end_time)
          # Check if we reached end_time to set timerDone flag
         if endTimer_flag:
@@ -106,31 +107,38 @@ def time_split(time_string):
 
     return hours_tens, hours_ones, minutes_tens, minutes_ones, seconds_tens, seconds_ones
 
-def input_reader(timerDone_flag):
+def input_reader(timerDone_flag, userInput_flag):
 
-    while not timerDone_flag.is_set():
+    while not timerDone_flag.is_set() and not userInput_flag.is_set():
         input() # input() hangs until some input is received, only then moves to next step
-        timerDone_flag.set() # if input() receives input, moves on to this step where flag is set
-        print()
-        return print(" user input - ending timer\n") 
+        userInput_flag.set() # if input() receives input, moves on to this step where flag is set
+        return 
 
 
 def main_timer(current_time=0):
 
     timerDone_flag = threading.Event()
+    userInput_flag = threading.Event()
 
     # timer done flag passed into two threads - set in one, read in the other
     executor = ThreadPoolExecutor(max_workers=1) 
-    timer = executor.submit(background_timer, timerDone_flag)
+    timer = executor.submit(background_timer, timerDone_flag, userInput_flag)
     # Daemon thread, so it won't keep the program alive
-    threading.Thread(target=input_reader, args=(timerDone_flag,), daemon=True).start()
+    threading.Thread(target=input_reader, args=(timerDone_flag, userInput_flag), daemon=True).start()
             
     result = timer.result()
-    if result:
-        return print("\n\n timer completed \n")
+
+    message = None
+    if timerDone_flag.is_set():
+        message = "timer completed"
+    elif userInput_flag.is_set():
+        message = "user input - ending timer"
     else: 
-        return print("\n\n unexepcted error \n")
+        message = "unexepcted error"
+
+    return print(f"\n\n {message} \n\n")
 
     
 if __name__ == "__main__":
+
     main_timer()
