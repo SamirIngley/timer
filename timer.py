@@ -15,12 +15,10 @@ THREE_SECONDS = "00:00:03"
 TEN_SECONDS = "00:00:10"
 
 def background_timer(timerDone_flag, userInput_flag): 
-    print()
-    print()
-
     time_value = ZEROES # start time / or current time
     end_time = THREE_SECONDS
 
+    print()
     while not timerDone_flag.is_set() and not userInput_flag.is_set(): 
         time_value, endTimer_flag = clock_logic(time_value, end_time)
 
@@ -108,9 +106,9 @@ def time_split(time_string):
 
 def input_reader(timerDone_flag, userInput_flag):
 
-    while not timerDone_flag.is_set() and not userInput_flag.is_set():
-        input() # input() hangs until some input is received, only then moves to next step
-        userInput_flag.set() # if input() receives input, moves on to this step where flag is set
+    while not timerDone_flag.is_set():
+        input() # input() blocks this thread until some input is received, only then moves to next step
+        userInput_flag.set()
         return 
 
 def message(timerDone_flag, userInput_flag):
@@ -122,14 +120,13 @@ def message(timerDone_flag, userInput_flag):
     else: 
         message = "unexepcted error"
 
-    return print(f"\n\n {message} \n\n")
+    return print(f"\n\n {message} \n")
 
 def main_timer(current_time=0):
 
     timerDone_flag = threading.Event()
     userInput_flag = threading.Event()
 
-    # timer done flag passed into two threads - set in one, read in the other
     executor = ThreadPoolExecutor(max_workers=1) 
     timer = executor.submit(background_timer, timerDone_flag, userInput_flag)
     # Daemon thread, so it won't keep the program alive
