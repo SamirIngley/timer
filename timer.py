@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# above makes it executable from cli 
 
 from concurrent.futures import ThreadPoolExecutor
 import threading
@@ -6,6 +8,8 @@ import sys
 
 '''
 TODO: simplify clock logic 
+TODO: verify end time is a valid possible end time
+TODO: what happens if there is no end time, can't have program crash. 
 '''
 
 ZEROES = "00:00:00"
@@ -123,7 +127,7 @@ def message(timerDone_flag, userInput_flag):
 def main_timer(current_time=0):
 
     # program_name = sys.argv[0]
-    end_time = None
+    end_time = "99:59:59"
     if len(sys.argv) > 1:
         end_time = sys.argv[1]
 
