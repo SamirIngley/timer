@@ -12,22 +12,46 @@ TODO: verify end time is a valid possible end time
 TODO: what happens if there is no end time, can't have program crash. 
 '''
 
-ZEROES = "00:00:00"
+ZERO = "00000"
 THREE_SECONDS = "00:00:03"
 TEN_SECONDS = "00:00:10"
 
-def background_timer(timerDone_flag, userInput_flag, end_time): 
-    time_value = ZEROES # start time / or current time
+def background_timer(timeComplete_flag, userInput_flag, end_time): 
+    # time_value keeps track of the current time 
+    time_value = ZERO # start time / or current time
 
     print()
-    while not timerDone_flag.is_set() and not userInput_flag.is_set(): 
-        time_value, endTimer_flag = clock_logic(time_value, end_time)
+    while time_value is not None and not timeComplete_flag.is_set() and not userInput_flag.is_set(): 
+        time_value = clock_logic_2(time_value, end_time, timeComplete_flag)
 
-        if endTimer_flag:
-            timerDone_flag.set()
-            return endTimer_flag
+def time_format(current_time):
+    # seconds grand total --> HH:MM:SS
+    curr_time = int(current_time)
+    hours, hours_rem = divmod(curr_time, 3600)
+    minutes, minutes_rem = divmod(hours_rem, 60) 
+    seconds = minutes_rem 
+ 
+    times = [hours, minutes, seconds]
 
-def clock_logic(current_time, end_time):
+    formatted_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    return formatted_time
+
+def clock_logic_2(current_time, end_time, timeComplete_flag): 
+
+    formatted_time = time_format(current_time)
+    print(f"\r  {formatted_time}  \033[K", end="", flush=True)
+
+    if formatted_time == end_time: 
+        timeComplete_flag.set()
+        return
+    else: 
+        time.sleep(1)
+        new_time = int(current_time) +  1
+        return new_time
+
+
+def clock_logic(current_time, end_time, new_time_value):
     h_tens, h_ones, m_tens, m_ones, s_tens, s_ones = time_split(current_time)
     print(f"\r  {current_time}  \033[K", end="", flush=True)
     # print(current_time)
@@ -36,7 +60,9 @@ def clock_logic(current_time, end_time):
         timerEnd_flag = True
     else: 
         time.sleep(1)
+        nt = int(new_time_value) +  1
 
+        # clock logic begin
         if s_ones == 9: 
 
             if s_tens == 5: 
@@ -50,6 +76,7 @@ def clock_logic(current_time, end_time):
                             if h_tens == 1: 
 
                                 print("out of bounds")
+                                timerEnd_flag = True
                             else: 
                                 h_tens += 1
                                 h_ones = 0
@@ -84,7 +111,7 @@ def clock_logic(current_time, end_time):
     new_hours = str(h_tens) + str(h_ones)
     current_time = new_hours + ":" + new_minutes + ":" + new_seconds
 
-    return current_time, timerEnd_flag
+    return current_time, timerEnd_flag, nt
 
 def time_split(time_string): 
 
@@ -131,17 +158,17 @@ def main_timer(current_time=0):
     if len(sys.argv) > 1:
         end_time = sys.argv[1]
 
-    timerDone_flag = threading.Event()
+    timeComplete_flag = threading.Event()
     userInput_flag = threading.Event()
 
     executor = ThreadPoolExecutor(max_workers=1) 
-    timer = executor.submit(background_timer, timerDone_flag, userInput_flag, end_time)
+    timer = executor.submit(background_timer, timeComplete_flag, userInput_flag, end_time)
     # Daemon thread, so it won't keep the program alive
-    threading.Thread(target=input_reader, args=(timerDone_flag, userInput_flag), daemon=True).start()
+    threading.Thread(target=input_reader, args=(timeComplete_flag, userInput_flag), daemon=True).start()
             
     result = timer.result()
 
-    return message(timerDone_flag, userInput_flag)
+    return message(timeComplete_flag, userInput_flag)
     
 
     
