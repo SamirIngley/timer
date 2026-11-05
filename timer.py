@@ -9,9 +9,12 @@ import subprocess
 
 
 '''
-TODO: add notification (via flag) for end time
+TODO: add notification (via flag) for end time 
 TODO: help flag
 TODO: be able to schedule several end times
+TODO: user input clean up. End time should be valid time. 
+TODO: be able to name timers
+TODO: add tests
 '''
 
 ZERO = "0"
@@ -19,7 +22,9 @@ THREE_SECONDS = "3"
 TEN_SECONDS = "10"
 
 def background_timer(timeComplete_flag, userInput_flag, end_time): 
-    # time_value keeps track of the current time 
+    # time_value keeps track of the time in seconds and is updated constantly by clock_logic
+    # time_format converts to HH:MM:SS when displaying the time
+
     time_value = ZERO # start time / or current time
 
     print()
@@ -46,7 +51,7 @@ def clock_logic(current_time, end_time, timeComplete_flag):
 #           HELPER FUNCTIONS
 
 def time_format(current_time):
-    # seconds grand total --> HH:MM:SS
+    # Converts seconds grand total --> HH:MM:SS
     curr_time = int(current_time)
     hours, hours_rem = divmod(curr_time, 3600)
     minutes, minutes_rem = divmod(hours_rem, 60) 
@@ -71,15 +76,12 @@ def output_handler(timerDone_flag, userInput_flag):
     message = None
     if timerDone_flag.is_set():
         message = "timer completed"
-        notify_mac(notify_title, message)
     elif userInput_flag.is_set():
         message = "user input - ending timer"
-        notify_mac(notify_title, message)
-        return print(f"\n {message} \n")
     else: 
         message = "unexepcted error"
-        notify_mac(notify_title, message)
-
+    
+    notify_mac(notify_title, message)
     return print(f"\n\n {message} \n")
 
 def notify_mac(title, text):
@@ -90,14 +92,58 @@ def notify_mac(title, text):
         f'display notification "{text}" with title "{title}"'
     ])
 
+def help_cmd(empty_args):
+
+    print('''
+        --------------------------------------------------
+
+            Terminal Timer Help
+
+            End time
+                as argument `timer HH:MM:SS`
+                default end time is 99:59:59
+
+            Arguments
+                can be either an end time or a command 
+
+            Flags
+                -h  help
+
+        --------------------------------------------------
+        ''')
+    sys.exit(0)
+
+def input_parser(user_input):
+
+    BUILTIN_CMDS = {
+        "-h": help_cmd,
+        }
+
+    # check number of arguments
+    # if cmd, call its function
+    # if it's an end time, return that endtime
+
+    if len(user_input) > 1: # more than just the program name
+
+        cmd = user_input[1] # could be an end tie
+        args = user_input[2:] # if none, is empty list 
+
+        if cmd in BUILTIN_CMDS.keys():
+            return BUILTIN_CMDS[cmd](args)
+        else: 
+            # CMD IS END TIME
+            return cmd
+
+    # let the cmd handle exiting (can't layer cmds then)
+    # if method returns something - it should be the new end_time otherwise the cmd handles exiting 
+
 # -----------------------------------------------------------------------------
+
 
 def main_timer(current_time=0):
 
-    # program_name = sys.argv[0]
     end_time = "99:59:59"
-    if len(sys.argv) > 1:
-        end_time = sys.argv[1]
+    end_time = input_parser(sys.argv) # Checks for cmd, returns output of Built-In Cmd 
 
     timeComplete_flag = threading.Event()
     userInput_flag = threading.Event()
