@@ -5,16 +5,18 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 import sys
+import subprocess
+
 
 '''
-TODO: simplify clock logic 
-TODO: verify end time is a valid possible end time
-TODO: what happens if there is no end time, can't have program crash. 
+TODO: add notification (via flag) for end time
+TODO: help flag
+TODO: be able to schedule several end times
 '''
 
-ZERO = "00000"
-THREE_SECONDS = "00:00:03"
-TEN_SECONDS = "00:00:10"
+ZERO = "0"
+THREE_SECONDS = "3"
+TEN_SECONDS = "10"
 
 def background_timer(timeComplete_flag, userInput_flag, end_time): 
     # time_value keeps track of the current time 
@@ -22,7 +24,26 @@ def background_timer(timeComplete_flag, userInput_flag, end_time):
 
     print()
     while time_value is not None and not timeComplete_flag.is_set() and not userInput_flag.is_set(): 
-        time_value = clock_logic_2(time_value, end_time, timeComplete_flag)
+        time_value = clock_logic(time_value, end_time, timeComplete_flag)
+
+def clock_logic(current_time, end_time, timeComplete_flag): 
+    # CURRENT TIME, END TIME, COMPLETE_FLAG --> NONE or NEW TIME
+    # Checks for end time
+
+    formatted_time = time_format(current_time)
+    print(f"\r  {formatted_time}  \033[K", end="", flush=True)
+
+    if formatted_time == end_time: 
+        timeComplete_flag.set()
+        return
+    else: 
+        time.sleep(1)
+        new_time = int(current_time) +  1
+        return new_time
+
+
+# -----------------------------------------------------------------------------
+#           HELPER FUNCTIONS
 
 def time_format(current_time):
     # seconds grand total --> HH:MM:SS
@@ -37,119 +58,39 @@ def time_format(current_time):
 
     return formatted_time
 
-def clock_logic_2(current_time, end_time, timeComplete_flag): 
-
-    formatted_time = time_format(current_time)
-    print(f"\r  {formatted_time}  \033[K", end="", flush=True)
-
-    if formatted_time == end_time: 
-        timeComplete_flag.set()
-        return
-    else: 
-        time.sleep(1)
-        new_time = int(current_time) +  1
-        return new_time
-
-
-def clock_logic(current_time, end_time, new_time_value):
-    h_tens, h_ones, m_tens, m_ones, s_tens, s_ones = time_split(current_time)
-    print(f"\r  {current_time}  \033[K", end="", flush=True)
-    # print(current_time)
-    timerEnd_flag = False
-    if current_time == end_time:
-        timerEnd_flag = True
-    else: 
-        time.sleep(1)
-        nt = int(new_time_value) +  1
-
-        # clock logic begin
-        if s_ones == 9: 
-
-            if s_tens == 5: 
-
-                if m_ones == 9: 
-
-                    if m_tens == 5: 
-
-                        if h_ones == 9: 
-
-                            if h_tens == 1: 
-
-                                print("out of bounds")
-                                timerEnd_flag = True
-                            else: 
-                                h_tens += 1
-                                h_ones = 0
-                                m_tens = 0
-                                m_ones = 0
-                                s_tens = 0
-                                s_ones = 0
-                        else: 
-                            h_ones += 1
-                            m_tens = 0
-                            m_ones = 0
-                            s_tens = 0
-                            s_ones = 0
-                    else: 
-                        m_tens += 1
-                        m_ones = 0
-                        s_tens = 0
-                        s_ones = 0
-                else: 
-                    m_ones += 1
-                    s_tens = 0
-                    s_ones = 0
-            else:
-                s_tens += 1
-                s_ones = 0
-
-        else: 
-            s_ones += 1
-
-    new_seconds = str(s_tens) + str(s_ones)
-    new_minutes = str(m_tens) + str(m_ones)
-    new_hours = str(h_tens) + str(h_ones)
-    current_time = new_hours + ":" + new_minutes + ":" + new_seconds
-
-    return current_time, timerEnd_flag, nt
-
-def time_split(time_string): 
-
-    # Strings
-    time_list = time_string.split(":")
-    hours = time_list[0]
-    minutes = time_list[1]
-    seconds = time_list[2]
-
-    hours_ones = int(hours[1])
-    hours_tens = int(hours[0])
-
-    minutes_ones = int(minutes[1])
-    minutes_tens = int(minutes[0])
-
-    seconds_ones = int(seconds[1])
-    seconds_tens = int(seconds[0])
-
-    return hours_tens, hours_ones, minutes_tens, minutes_ones, seconds_tens, seconds_ones
-
-def input_reader(timerDone_flag, userInput_flag):
+def input_listener(timerDone_flag, userInput_flag):
 
     while not timerDone_flag.is_set():
         input() # input() blocks this thread until some input is received, only then moves to next step
         userInput_flag.set()
         return 
 
-def message(timerDone_flag, userInput_flag):
+def output_handler(timerDone_flag, userInput_flag):
+
+    notify_title = "Terminal Timer"
     message = None
     if timerDone_flag.is_set():
         message = "timer completed"
+        notify_mac(notify_title, message)
     elif userInput_flag.is_set():
         message = "user input - ending timer"
+        notify_mac(notify_title, message)
         return print(f"\n {message} \n")
     else: 
         message = "unexepcted error"
+        notify_mac(notify_title, message)
 
     return print(f"\n\n {message} \n")
+
+def notify_mac(title, text):
+    # Using safe list-based arguments instead of a raw string shell execution
+    subprocess.run([
+        "osascript", 
+        "-e", 
+        f'display notification "{text}" with title "{title}"'
+    ])
+
+# -----------------------------------------------------------------------------
 
 def main_timer(current_time=0):
 
@@ -164,12 +105,11 @@ def main_timer(current_time=0):
     executor = ThreadPoolExecutor(max_workers=1) 
     timer = executor.submit(background_timer, timeComplete_flag, userInput_flag, end_time)
     # Daemon thread, so it won't keep the program alive
-    threading.Thread(target=input_reader, args=(timeComplete_flag, userInput_flag), daemon=True).start()
+    threading.Thread(target=input_listener, args=(timeComplete_flag, userInput_flag), daemon=True).start()
             
     result = timer.result()
 
-    return message(timeComplete_flag, userInput_flag)
-    
+    return output_handler(timeComplete_flag, userInput_flag)
 
     
 if __name__ == "__main__":
