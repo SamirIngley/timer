@@ -5,16 +5,21 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 import time
 import sys
-import subprocess
 
+from input_handler import input_listener, input_parser 
+from output_methods import time_format, output_handler
 
 '''
 TODO: add notification (via flag) for end time 
-TODO: help flag
+to be able to toggle notification, need to be able to distinguish between flag and endtime from argument
+-h doesn't have end time and it independently ends the program
+-n does have endtime
+
 TODO: be able to schedule several end times
-TODO: user input clean up. End time should be valid time. 
+TODO: user input end time should be valid time. 
 TODO: be able to name timers
 TODO: add tests
+TODO: convert to countdown if end time given?
 '''
 
 ZERO = "0"
@@ -47,99 +52,6 @@ def clock_logic(current_time, end_time, timeComplete_flag):
         return new_time
 
 
-# -----------------------------------------------------------------------------
-#           HELPER FUNCTIONS
-
-def time_format(current_time):
-    # Converts seconds grand total --> HH:MM:SS
-    curr_time = int(current_time)
-    hours, hours_rem = divmod(curr_time, 3600)
-    minutes, minutes_rem = divmod(hours_rem, 60) 
-    seconds = minutes_rem 
- 
-    times = [hours, minutes, seconds]
-
-    formatted_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-
-    return formatted_time
-
-def input_listener(timerDone_flag, userInput_flag):
-
-    while not timerDone_flag.is_set():
-        input() # input() blocks this thread until some input is received, only then moves to next step
-        userInput_flag.set()
-        return 
-
-def output_handler(timerDone_flag, userInput_flag):
-
-    notify_title = "Terminal Timer"
-    message = None
-    if timerDone_flag.is_set():
-        message = "timer completed"
-    elif userInput_flag.is_set():
-        message = "user input - ending timer"
-    else: 
-        message = "unexepcted error"
-    
-    notify_mac(notify_title, message)
-    return print(f"\n\n {message} \n")
-
-def notify_mac(title, text):
-    # Using safe list-based arguments instead of a raw string shell execution
-    subprocess.run([
-        "osascript", 
-        "-e", 
-        f'display notification "{text}" with title "{title}"'
-    ])
-
-def help_cmd(empty_args):
-
-    print('''
-        --------------------------------------------------
-
-            Terminal Timer Help
-
-            End time
-                as argument `timer HH:MM:SS`
-                default end time is 99:59:59
-
-            Arguments
-                can be either an end time or a command 
-
-            Flags
-                -h  help
-
-        --------------------------------------------------
-        ''')
-    sys.exit(0)
-
-def input_parser(user_input):
-
-    BUILTIN_CMDS = {
-        "-h": help_cmd,
-        }
-
-    # check number of arguments
-    # if cmd, call its function
-    # if it's an end time, return that endtime
-
-    if len(user_input) > 1: # more than just the program name
-
-        cmd = user_input[1] # could be an end tie
-        args = user_input[2:] # if none, is empty list 
-
-        if cmd in BUILTIN_CMDS.keys():
-            return BUILTIN_CMDS[cmd](args)
-        else: 
-            # CMD IS END TIME
-            return cmd
-
-    # let the cmd handle exiting (can't layer cmds then)
-    # if method returns something - it should be the new end_time otherwise the cmd handles exiting 
-
-# -----------------------------------------------------------------------------
-
-
 def main_timer(current_time=0):
 
     end_time = "99:59:59"
@@ -148,12 +60,14 @@ def main_timer(current_time=0):
     timeComplete_flag = threading.Event()
     userInput_flag = threading.Event()
 
-    executor = ThreadPoolExecutor(max_workers=1) 
-    timer = executor.submit(background_timer, timeComplete_flag, userInput_flag, end_time)
-    # Daemon thread, so it won't keep the program alive
-    threading.Thread(target=input_listener, args=(timeComplete_flag, userInput_flag), daemon=True).start()
+    notify_flag = threading.Event()
+
+    with ThreadPoolExecutor(max_workers=1)  as executor: 
+        timer = executor.submit(background_timer, timeComplete_flag, userInput_flag, end_time)
+        # Daemon thread, so it won't keep the program alive
+        threading.Thread(target=input_listener, args=(timeComplete_flag, userInput_flag), daemon=True).start() 
             
-    result = timer.result()
+    result = timer.result() # forces function to wait til threads are done before moving to return
 
     return output_handler(timeComplete_flag, userInput_flag)
 

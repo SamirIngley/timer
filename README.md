@@ -1,5 +1,12 @@
 Timer App for Terminal
 
+Counts up until an end time. 
+Gives a desktop notification. 
+
+Things to know: 
+- Stops when laptop is closed/sleeps
+
+
 Help Page: 
 
     End time
